@@ -8,6 +8,14 @@
 
 #include "mpc.h"
 
+// Error handling pre-processor function
+#define LASSERT(args, cond, err)                                               \
+    if (cond)                                                                  \
+    {                                                                          \
+        lval_del(args);                                                        \
+        return lval_err(err);                                                  \
+    }
+
 // lval [type] field values
 enum
 {
@@ -15,6 +23,7 @@ enum
     LVAL_ERR,
     LVAL_SYM,
     LVAL_SEXPR,
+    LVAL_QEXPR,
 };
 
 typedef struct lval
@@ -34,6 +43,7 @@ lval *lval_num(long num);
 lval *lval_err(char *message);
 lval *lval_sym(char *symbol);
 lval *lval_sexpr(void);
+lval *lval_qexpr(void);
 
 // Deconstruct lval pointers
 void lval_del(lval *v);
@@ -49,10 +59,18 @@ void lval_print(lval *v);
 void lval_println(lval *v);
 
 // Evaluating lval
-lval *lval_eval_sexpr(lval *v);
-lval *lval_eval(lval *v);
 lval *lval_pop(lval *v, int i);
 lval *lval_take(lval *v, int i);
+lval *lval_join(lval *x, lval *y);
+lval *builtin_head(lval *v);
+lval *builtin_tail(lval *v);
+lval *builtin_list(lval *v);
+lval *builtin_join(lval *v);
+lval *builtin_eval(lval *v);
 lval *builtin_op(lval *v, char *op);
+lval *builtin(lval *v, char *fun);
+
+lval *lval_eval_sexpr(lval *v);
+lval *lval_eval(lval *v);
 
 #endif

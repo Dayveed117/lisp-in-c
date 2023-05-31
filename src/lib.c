@@ -27,7 +27,7 @@ int number_of_nodes(mpc_ast_t *t)
 
 int number_of_leaves(mpc_ast_t *t)
 {
-    if (strstr(t->tag, "number") || strstr(t->tag, "operator"))
+    if (strstr(t->tag, "number") || strstr(t->tag, "symbol"))
         return 1;
 
     int total = 0;

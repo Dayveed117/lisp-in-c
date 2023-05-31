@@ -1,6 +1,6 @@
-# -------------------------------------------------- #
-# --------------------- MACROS --------------------- #
-# -------------------------------------------------- #
+# ----------------------------------------------------- #
+# --------------------- VARIABLES --------------------- #
+# ----------------------------------------------------- #
 
 # https://stackoverflow.com/questions/30573481/how-to-write-a-makefile-with-separate-source-and-header-directories
 # https://stackoverflow.com/questions/1950926/create-directories-using-make-file
