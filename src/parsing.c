@@ -23,11 +23,7 @@ int main(int argc, char **argv)
 
     const char *language = "                                      \
         number   : /-?[0-9]+[.]?[0-9]*/;                    \
-        symbol   : '+' | '-' | '*' | '/'                    \
-                 | '%' | '^' | '<' | '>'                    \
-                 | \"list\" | \"head\" | \"tail\"           \
-                 | \"join\" | \"eval\" | \"cons\"           \
-                 | \"init\" | \"len\";                      \
+        symbol   : /[a-zA-Z0-9_+\\-*\\/\\\\=<>!&^%]+/;      \
         sexpr    : '(' <expr>* ')';                         \
         qexpr    : '{' <expr>* '}';                         \
         expr     : <number> | <symbol> | <sexpr> | <qexpr>; \
@@ -39,6 +35,11 @@ int main(int argc, char **argv)
 
     puts("Lispy Version 0.4");
     puts("Press Ctrl+c or type \"exit\" to exit\n");
+
+    // Create environment for variables and functions
+    // Register builtin functions
+    lenv *env = lenv_new();
+    lenv_add_builtins(env);
 
     while (1)
     {
@@ -52,7 +53,7 @@ int main(int argc, char **argv)
         if (mpc_parse("<stdin>", buf, Lispy, &r))
         {
             // Successful parse
-            lval *x = lval_eval(lval_read(r.output));
+            lval *x = lval_eval(env, lval_read(r.output));
             lval_println(x);
             lval_del(x);
 
@@ -72,6 +73,7 @@ int main(int argc, char **argv)
         free(buf);
     }
 
+    lenv_del(env);
     mpc_cleanup(6, Number, Symbol, Sexpr, Qexpr, Expr, Lispy);
 
     return 0;
