@@ -13,13 +13,7 @@
 
 int main(int argc, char **argv)
 {
-    for (int i = 1; i < argc; i++)
-    {
-        printf("Argument %d: %s\n", i, argv[i]);
-    }
-
-
-    // Defining the Grammar for Polish Notation language
+    // Defining the Grammar for Lisp-in-C
     mpc_parser_t *Number = mpc_new("number");
     mpc_parser_t *Symbol = mpc_new("symbol");
     mpc_parser_t *Sexpr = mpc_new("sexpr");
@@ -27,18 +21,21 @@ int main(int argc, char **argv)
     mpc_parser_t *Expr = mpc_new("expr");
     mpc_parser_t *Lispy = mpc_new("lispy");
 
-    mpca_lang(MPCA_LANG_DEFAULT, "                          \
+    const char *language = "                                      \
         number   : /-?[0-9]+[.]?[0-9]*/;                    \
         symbol   : '+' | '-' | '*' | '/'                    \
                  | '%' | '^' | '<' | '>'                    \
                  | \"list\" | \"head\" | \"tail\"           \
-                 | \"join\" | \"eval\";                     \
+                 | \"join\" | \"eval\" | \"cons\"           \
+                 | \"init\" | \"len\";                      \
         sexpr    : '(' <expr>* ')';                         \
         qexpr    : '{' <expr>* '}';                         \
         expr     : <number> | <symbol> | <sexpr> | <qexpr>; \
         lispy    : /^/ <expr>* /$/;                         \
-    ",
-              Number, Symbol, Sexpr, Qexpr, Expr, Lispy);
+    ";
+
+    mpca_lang(MPCA_LANG_DEFAULT, language, Number, Symbol, Sexpr, Qexpr, Expr,
+              Lispy);
 
     puts("Lispy Version 0.4");
     puts("Press Ctrl+c or type \"exit\" to exit\n");

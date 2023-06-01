@@ -62,7 +62,7 @@ OBJS = $(SRCS:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o)
 all: bin/parsing bin/doge bin/doge_grammar
 
 bin/parsing: obj/mpc.o obj/lib.o obj/eval.o obj/parsing.o | bin
-	$(CC) $(CLAGS) $^ $(LIBS) -o $@
+	$(CC) $(CLAGS) $^ $(LIBS) -g -o $@
 
 bin/doge: obj/mpc.o obj/doge.o | bin
 	$(CC) $(CLAGS) $^ $(LIBS) -o $@

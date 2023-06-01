@@ -193,6 +193,23 @@ lval *lval_pop(lval *v, int i)
     return x;
 }
 
+lval *lval_push(lval *v, lval* x)
+{
+    // TODO : Understand what is wrong
+    // Reallocate for one more [lval *] element
+    // v->count++;
+    // v->cell = realloc(v->cell, sizeof(lval *) * v->count);
+
+    // Shift every element of the list to the right
+    // ! Very important
+    // memmove(&v->cell[1], &v->cell[0], sizeof(lval *) * v->count);
+
+    // Directly put x as first element
+    // v->cell[0] = x;
+
+    return v;
+}
+
 lval *lval_take(lval *v, int i)
 {
     lval *x = lval_pop(v, i);
@@ -206,6 +223,16 @@ lval *lval_join(lval *x, lval *y)
     // Add every element of y to x
     while (y->count)
         x = lval_add(x, lval_pop(y, 0));
+    lval_del(y);
+
+    return x;
+}
+
+lval *lval_cons(lval *x, lval *y)
+{
+    // Take last element from y, append it to the start of x
+    // TODO : Implement a working [lval_push]
+    x = lval_push(x, y);
     lval_del(y);
 
     return x;
@@ -274,6 +301,46 @@ lval *builtin_eval(lval *v)
     x->type = LVAL_SEXPR;
 
     return lval_eval(x);
+}
+
+lval *builtin_cons(lval *v)
+{
+    LASSERT(v, v->count != 2, "Function 'cons' expects 2 arguments");
+    LASSERT(v, v->cell[0]->type != LVAL_QEXPR,
+            "Function 'cons' expects first element to be Q-Expression");
+
+    lval* x = lval_pop(v, 0);
+    x = lval_cons(x, lval_pop(v, 0));
+    lval_del(v);
+
+    return x;
+}
+
+lval *builtin_len(lval *v)
+{
+    LASSERT(v, v->count != 1, "Function 'len' expects only 1 argument");
+    LASSERT(v, v->cell[0]->type != LVAL_QEXPR,
+            "Function 'len' expects a Q-Expression");
+
+    lval *x = lval_take(v, 0);
+    long length = x->count;
+    lval_del(x);
+
+    return lval_num(length);
+}
+
+lval *builtin_init(lval *v)
+{
+    LASSERT(v, v->count != 1, "Function 'init' expects only 1 argument");
+    LASSERT(v, v->cell[0]->type != LVAL_QEXPR,
+            "Function 'init' expects a Q-Expression");
+
+    // Take everything except the last element of the Q-Expression
+    // Delete last element, return remaining
+    lval *x = lval_take(v, 0);
+    lval_del(lval_pop(x, x->count - 1));
+
+    return x;
 }
 
 lval *builtin_op(lval *v, char *op)
@@ -368,6 +435,12 @@ lval *builtin(lval *v, char *fun)
         return builtin_join(v);
     if (strcmp(fun, "eval") == 0)
         return builtin_eval(v);
+    if (strcmp(fun, "cons") == 0)
+        return builtin_cons(v);
+    if (strcmp(fun, "init") == 0)
+        return builtin_init(v);
+    if (strcmp(fun, "len") == 0)
+        return builtin_len(v);
     if (strstr("+-*/%^><", fun))
         return builtin_op(v, fun);
 

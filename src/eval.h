@@ -58,16 +58,56 @@ void lval_expr_print(lval *v, char open, char close);
 void lval_print(lval *v);
 void lval_println(lval *v);
 
-// Evaluating lval
+/* Remove element I from V
+Shift remaining list towards the removed element's position */
 lval *lval_pop(lval *v, int i);
+
+/* Push X to the front of V
+Shifts entire list forward one position */
+lval *lval_push(lval *v, lval* x);
+
+/* Apply LVAL_POP on V in index I
+Delete the remaining of V */
 lval *lval_take(lval *v, int i);
+
+/* Append every element from Y to X */
 lval *lval_join(lval *x, lval *y);
+
+/* Append value Y to the front of X */
+lval *lval_cons(lval *x, lval *y);
+
+/* Return the first element of V
+Delete the remaining of V */
 lval *builtin_head(lval *v);
+
+/* Return the last element of V
+Delete the remaining of V */
 lval *builtin_tail(lval *v);
+
+/* Append value X to V */
+lval *builtin_cons(lval *v);
+
+/* Return the number of elements in V
+V has to be a Q-Expression */
+lval *builtin_len(lval *v);
+
+/* Return all of V except for its final element
+V has to be a Q-Expression */
+lval *builtin_init(lval *v);
+
+/* Return all of V as a Q-Expression */
 lval *builtin_list(lval *v);
+
+/* Join all of V's Q-Expressions */
 lval *builtin_join(lval *v);
+
+/* Evaluate all of V */
 lval *builtin_eval(lval *v);
+
+/* Evaluate V using symbol OP*/
 lval *builtin_op(lval *v, char *op);
+
+/* Apply builtin function or operator FUN to V */
 lval *builtin(lval *v, char *fun);
 
 lval *lval_eval_sexpr(lval *v);
