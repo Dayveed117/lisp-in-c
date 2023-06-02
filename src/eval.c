@@ -59,11 +59,11 @@ lenv *lenv_copy(lenv *e)
     lenv *ne = malloc(sizeof(lenv));
     ne->parent = e->parent;
     ne->count = e->count;
-    ne->syms = e->syms;
-    ne->vals = e->vals;
+    ne->syms = malloc(sizeof(char *) * e->count);
+    ne->vals = malloc(sizeof(lval *) * e->count);
     for (size_t i = 0; i < ne->count; i++)
     {
-        ne->syms[i] = malloc(strlen(ne->syms[i]) + 1);
+        ne->syms[i] = malloc(strlen(e->syms[i]) + 1);
         strcpy(ne->syms[i], e->syms[i]);
         ne->vals[i] = lval_copy(e->vals[i]);
     }

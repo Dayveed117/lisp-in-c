@@ -28,7 +28,7 @@ BIN_DIR := ./bin
 
 CC 	   := cc -std=c99
 LIBS   := -ledit -lm
-CFLAGS := -Wall
+CFLAGS := -Wall -g
 
 # match all .c files inside src/
 SRCS := $(wildcard $(SRC_DIR)/*.c)
@@ -62,31 +62,31 @@ OBJS = $(SRCS:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o)
 all: bin/parsing bin/doge bin/doge_grammar
 
 bin/parsing: obj/mpc.o obj/lib.o obj/eval.o obj/parsing.o | bin
-	$(CC) $(CLAGS) $^ $(LIBS) -g -o $@
+	$(CC) $(CFLAGS) $^ $(LIBS) -o $@
 
 bin/doge: obj/mpc.o obj/doge.o | bin
-	$(CC) $(CLAGS) $^ $(LIBS) -o $@
+	$(CC) $(CFLAGS) $^ $(LIBS) -o $@
 
 bin/doge_grammar: obj/mpc.o obj/doge_grammar.o | bin
-	$(CC) $(CLAGS) $^ $(LIBS) -o $@
+	$(CC) $(CFLAGS) $^ $(LIBS) -o $@
 
 obj/mpc.o: src/mpc.c src/mpc.h | obj
-	$(CC) $(CLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) -c $< -o $@
 
 obj/lib.o: src/lib.c src/lib.h src/mpc.h | obj
-	$(CC) $(CLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) -c $< -o $@
 
 obj/eval.o: src/eval.c src/eval.h src/mpc.h | obj
-	$(CC) $(CLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) -c $< -o $@
 
 obj/parsing.o: src/parsing.c src/mpc.h src/lib.h src/eval.h | obj
-	$(CC) $(CLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) -c $< -o $@
 
 obj/doge.o: src/doge.c src/mpc.h | obj
-	$(CC) $(CLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) -c $< -o $@
 
 obj/doge_grammar.o: src/doge_grammar.c src/mpc.h | obj
-	$(CC) $(CLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) -c $< -o $@
 
 bin:
 	mkdir -p $@
@@ -106,7 +106,10 @@ obj:
 run:
 	$(BIN_DIR)/parsing
 
+gdb:
+	gdb $(BIN_DIR)/parsing -q
+
 .PHONY: clean
 
 clean:
-	rm -rfd $(BIN_DIR) $(OBJ_DIR)
+	rm -rf $(BIN_DIR)/* $(OBJ_DIR)/*
