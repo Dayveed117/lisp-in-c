@@ -30,6 +30,23 @@ lval *lenv_get(lenv *e, lval *k)
     return lval_err("Undefined Symbol '%s'", k->sym);
 }
 
+lval *lenv_get_key(lenv *e, lval *k)
+{
+    for (size_t i = 0; i < e->count; i++)
+        // ! Very fishy
+        if (e->vals[i]->fun == k->fun)
+            return lval_sym(e->syms[i]);
+
+    return lval_err("Function not found");
+}
+
+void lenv_print_definitions(lenv *e)
+{
+    for (size_t i = 0; i < e->count; i++)
+        printf("%s ", e->syms[i]);
+    putchar('\n');
+}
+
 int lenv_put(lenv *e, lval *k, lval *v)
 {
     // If K exists in E, update value with new V
@@ -88,9 +105,9 @@ void lenv_add_builtins(lenv *e)
     lenv_add_builtin(e, "*", builtin_mul);
     lenv_add_builtin(e, "/", builtin_div);
     lenv_add_builtin(e, "%", builtin_mod);
-    lenv_add_builtin(e, "^", builtin_pow);
-    lenv_add_builtin(e, "<", builtin_min);
-    lenv_add_builtin(e, ">", builtin_max);
+    lenv_add_builtin(e, "pow", builtin_pow);
+    lenv_add_builtin(e, "min", builtin_min);
+    lenv_add_builtin(e, "max", builtin_max);
 }
 
 lval *lval_num(long num)
@@ -245,12 +262,12 @@ lval *lval_add(lval *v, lval *x)
     return v;
 }
 
-void lval_expr_print(lval *v, char open, char close)
+void lval_expr_print(lenv *e, lval *v, char open, char close)
 {
     putchar(open);
     for (size_t i = 0; i < v->count; i++)
     {
-        lval_print(v->cell[i]);
+        lval_print(e, v->cell[i]);
 
         // Avoid trailing space if not end
         if (i != (v->count - 1))
@@ -260,7 +277,15 @@ void lval_expr_print(lval *v, char open, char close)
     putchar(close);
 }
 
-void lval_print(lval *v)
+void lval_print_func(lenv *e, lval* v)
+{
+    // Returns symbol or error
+    lval *tmp = lenv_get_key(e, v);
+    lval_print(e, tmp);
+    lval_del(tmp);
+}
+
+void lval_print(lenv *e, lval *v)
 {
     switch (v->type)
     {
@@ -274,13 +299,13 @@ void lval_print(lval *v)
         printf("%s", v->sym);
         break;
     case LVAL_FUN:
-        printf("<function>");
+        lval_print_func(e, v);
         break;
     case LVAL_SEXPR:
-        lval_expr_print(v, '(', ')');
+        lval_expr_print(e, v, '(', ')');
         break;
     case LVAL_QEXPR:
-        lval_expr_print(v, '{', '}');
+        lval_expr_print(e, v, '{', '}');
         break;
     default:
         printf("UNEXPECTED ERROR");
@@ -288,9 +313,9 @@ void lval_print(lval *v)
     }
 }
 
-void lval_println(lval *v)
+void lval_println(lenv *e, lval *v)
 {
-    lval_print(v);
+    lval_print(e, v);
     putchar('\n');
 }
 
@@ -423,15 +448,10 @@ lval *lval_cons(lval *x, lval *y)
 
 lval *builtin_head(lenv *e, lval *v)
 {
-    LASSERT(v, v->count != 1,
-            "Function 'head' passed too many arguments -- Got %d, Expected %d",
-            v->count, 1);
-    LASSERT(v, v->cell[0]->type != LVAL_QEXPR,
-            "Function 'head' passed incorrect type for argument 0 -- Got %s, "
-            "Expected %s",
-            ltype_name(v->cell[0]->type), ltype_name(LVAL_QEXPR));
-    LASSERT(v, v->cell[0]->count == 0,
-            "Function 'head' expects non-empty Q-Expression");
+    // Requires [one] [non-empty] [Q-Expression] argument
+    LASSERT_NUMARGS("head", v, 1);
+    LASSERT_NON_EMPTY("head", v, 0);
+    LASSERT_TYPE("head", v, 0, LVAL_QEXPR);
 
     // Take the first element of the Q-Expression
     // Return first, delete all remaining elements
@@ -444,11 +464,10 @@ lval *builtin_head(lenv *e, lval *v)
 
 lval *builtin_tail(lenv *e, lval *v)
 {
-    LASSERT(v, v->count != 1, "Function 'tail' expects only 1 argument");
-    LASSERT(v, v->cell[0]->type != LVAL_QEXPR,
-            "Function 'tail' expects a Q-Expression");
-    LASSERT(v, v->cell[0]->count == 0,
-            "Function 'tail' expects non-empty Q-Expression");
+    // Requires [one] [non-empty] [Q-Expression] argument
+    LASSERT_NUMARGS("tail", v, 1);
+    LASSERT_NON_EMPTY("tail", v, 0);
+    LASSERT_TYPE("tail", v, 0, LVAL_QEXPR);
 
     // Take the first element of the Q-Expression
     // Delete first element, return remaining
@@ -466,9 +485,9 @@ lval *builtin_list(lenv *e, lval *v)
 
 lval *builtin_join(lenv *e, lval *v)
 {
+    // Requires every argument to be a Q-Expression
     for (size_t i = 0; i < v->count; i++)
-        LASSERT(v, v->cell[i]->type != LVAL_QEXPR,
-                "Function 'join' only accepts Q-Expressions");
+        LASSERT_TYPE("join", v, i, LVAL_QEXPR);
 
     lval *x = lval_pop(v, 0);
     while (v->count)
@@ -480,9 +499,9 @@ lval *builtin_join(lenv *e, lval *v)
 
 lval *builtin_eval(lenv *e, lval *v)
 {
-    LASSERT(v, v->count != 1, "Function 'eval' expects only 1 argument");
-    LASSERT(v, v->cell[0]->type != LVAL_QEXPR,
-            "Function 'eval' expects a Q-Expression");
+    // Requires [one] [Q-Expression] argument
+    LASSERT_NUMARGS("eval", v, 1);
+    LASSERT_TYPE("eval", v, 0, LVAL_QEXPR);
 
     lval *x = lval_take(v, 0);
     x->type = LVAL_SEXPR;
@@ -492,9 +511,9 @@ lval *builtin_eval(lenv *e, lval *v)
 
 lval *builtin_cons(lenv *e, lval *v)
 {
-    LASSERT(v, v->count != 2, "Function 'cons' expects 2 arguments");
-    LASSERT(v, v->cell[0]->type != LVAL_QEXPR,
-            "Function 'cons' expects first element to be Q-Expression");
+    // Requires [two] arguments, first is Q-Expression
+    LASSERT_NUMARGS("cons", v, 2);
+    LASSERT_TYPE("cons", v, 0, LVAL_QEXPR);
 
     lval *x = lval_pop(v, 0);
     x = lval_cons(x, lval_pop(v, 0));
@@ -505,9 +524,9 @@ lval *builtin_cons(lenv *e, lval *v)
 
 lval *builtin_len(lenv *e, lval *v)
 {
-    LASSERT(v, v->count != 1, "Function 'len' expects only 1 argument");
-    LASSERT(v, v->cell[0]->type != LVAL_QEXPR,
-            "Function 'len' expects a Q-Expression");
+    // Requires [one] [Q-Expression] argument
+    LASSERT_NUMARGS("len", v, 1);
+    LASSERT_TYPE("len", v, 0, LVAL_QEXPR);
 
     lval *x = lval_take(v, 0);
     long length = x->count;
@@ -518,9 +537,9 @@ lval *builtin_len(lenv *e, lval *v)
 
 lval *builtin_init(lenv *e, lval *v)
 {
-    LASSERT(v, v->count != 1, "Function 'init' expects only 1 argument");
-    LASSERT(v, v->cell[0]->type != LVAL_QEXPR,
-            "Function 'init' expects a Q-Expression");
+    // Requires [one] [Q-Expression] argument
+    LASSERT_NUMARGS("len", v, 1);
+    LASSERT_TYPE("len", v, 0, LVAL_QEXPR);
 
     // Take everything except the last element of the Q-Expression
     // Delete last element, return remaining
@@ -533,20 +552,20 @@ lval *builtin_init(lenv *e, lval *v)
 lval *builtin_def(lenv *e, lval *v)
 {
     // Ensure first argument is a list of symbols
-    LASSERT(v, v->cell[0]->type != LVAL_QEXPR,
-            "Function 'def' passed incorrect type");
+    LASSERT_TYPE("def", v, 0, LVAL_QEXPR);
 
     lval *syms = v->cell[0];
 
     // Ensure all following elements are also symbols
     for (size_t i = 0; i < syms->count; i++)
-        LASSERT(v, syms->cell[i]->type != LVAL_SYM,
+        LASSERT(v, syms->cell[i]->type == LVAL_SYM,
                 "Funtion 'def' cannot define non-symbol");
 
     // Ensure arity between symbols and values
-    LASSERT(
-        v, syms->count != v->count - 1,
-        "Function 'def' cannot defined incorrect number of values to symbols");
+    LASSERT(v, (syms->count == v->count - 1),
+            "Function 'def' expects match between number of symbols and values "
+            "-- Got %d, Expected %d",
+            syms->count, v->count - 1);
 
     // Insert key value pairs
     for (size_t i = 0; i < syms->count; i++)
@@ -565,13 +584,7 @@ lval *builtin_op(lenv *e, lval *v, char *op)
 {
     // Ensure all arguments are numbers
     for (size_t i = 0; i < v->count; i++)
-    {
-        if (v->cell[i]->type != LVAL_NUM)
-        {
-            lval_del(v);
-            return lval_err("Cannot operate on non-number");
-        }
-    }
+        LASSERT_TYPE(op, v, i, LVAL_NUM);
 
     // Attempt to perform unary negation
     lval *x = lval_pop(v, 0);
@@ -593,10 +606,10 @@ lval *builtin_op(lenv *e, lval *v, char *op)
         if (strcmp(op, "*") == 0)
             x->num *= y->num;
 
-        if (strcmp(op, "<") == 0)
+        if (strcmp(op, "min") == 0)
             x->num = x->num < y->num ? x->num : y->num;
 
-        if (strcmp(op, ">") == 0)
+        if (strcmp(op, "max") == 0)
             x->num = x->num >= y->num ? x->num : y->num;
 
         if (strcmp(op, "/") == 0)
@@ -623,7 +636,7 @@ lval *builtin_op(lenv *e, lval *v, char *op)
             x->num %= y->num;
         }
 
-        if (strcmp(op, "^") == 0)
+        if (strcmp(op, "pow") == 0)
         {
             if (y->num < 0)
             {
@@ -662,15 +675,15 @@ lval *builtin_mod(lenv *e, lval *v)
 }
 lval *builtin_pow(lenv *e, lval *v)
 {
-    return builtin_op(e, v, "^");
+    return builtin_op(e, v, "pow");
 }
 lval *builtin_min(lenv *e, lval *v)
 {
-    return builtin_op(e, v, "<");
+    return builtin_op(e, v, "min");
 }
 lval *builtin_max(lenv *e, lval *v)
 {
-    return builtin_op(e, v, ">");
+    return builtin_op(e, v, "max");
 }
 
 lval *lval_eval_sexpr(lenv *e, lval *v)
@@ -696,9 +709,12 @@ lval *lval_eval_sexpr(lenv *e, lval *v)
     lval *f = lval_pop(v, 0);
     if (f->type != LVAL_FUN)
     {
+        lval *err = lval_err(
+            "S-Expression starts with incorrect type -- Got %s, Expected %s",
+            ltype_name(f->type), ltype_name(LVAL_FUN));
         lval_del(f);
         lval_del(v);
-        return lval_err("First element should be a function");
+        return err;
     }
 
     // ! Call BUILTIN FUNCTION STORED IN E to evaluate remaining of V

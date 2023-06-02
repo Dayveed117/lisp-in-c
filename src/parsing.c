@@ -49,12 +49,18 @@ int main(int argc, char **argv)
         if (strncmp(buf, "exit", 4) == 0)
             break;
 
+        if (strncmp(buf, "symbols", 4) == 0)
+        {
+            lenv_print_definitions(env);
+            continue;
+        }
+
         mpc_result_t r;
         if (mpc_parse("<stdin>", buf, Lispy, &r))
         {
             // Successful parse
             lval *x = lval_eval(env, lval_read(r.output));
-            lval_println(x);
+            lval_println(env, x);
             lval_del(x);
 
             // printf("Nº of nodes: %d\n", number_of_nodes(r.output));

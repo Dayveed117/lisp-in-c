@@ -8,17 +8,36 @@
 
 #include "mpc.h"
 
-// TODO : Modify LASSERTS in function definitions
-// Error handling pre-processor function
+// Main error handling pre-processor expansion
 #define LASSERT(args, cond, fmt, ...)                                          \
-    if (cond)                                                                  \
+    if (!(cond))                                                               \
     {                                                                          \
         lval *err = lval_err(fmt, ##__VA_ARGS__);                              \
         lval_del(args);                                                        \
         return err;                                                            \
     }
 
-// lval [type] field values
+// Expansion for assuring correct number of arguments in function
+#define LASSERT_NUMARGS(func, args, num)                                       \
+    LASSERT(args, args->count == num,                                          \
+            "Function %s non compatible arity -- Got %d, Expected %d", func,   \
+            args->count, num);
+
+// Expansion for assuring correct argument types in function
+#define LASSERT_TYPE(func, args, index, expect)                                \
+    LASSERT(args, args->cell[index]->type == expect,                           \
+            "Function %s passed incorrect type for argument %d -- Got %s, "    \
+            "Expected %s",                                                     \
+            func, index + 1, ltype_name(args->cell[index]->type),              \
+            ltype_name(expect));
+
+// Expansion for assuring operating on non-empty list
+#define LASSERT_NON_EMPTY(func, args, index)                                   \
+    LASSERT(args, args->cell[index]->count != 0,                               \
+            "Function %s expects non-empty list for argument %d", func,        \
+            index);
+
+// lval [type] field valuesk
 enum
 {
     LVAL_NUM,
@@ -64,12 +83,20 @@ void lenv_del(lenv *e);
 Return value if found, return error otherwise */
 lval *lenv_get(lenv *e, lval *v);
 
+/* Reverse look up lenv_get */
+lval *lenv_get_key(lenv *e, lval *k);
+
+/* Print all registered symbols */
+void lenv_print_definitions(lenv *e);
+
 /* Associate symbol K with value from V
 if K already exists, update with V */
 int lenv_put(lenv *e, lval *k, lval *v);
 
+/* Bind key ID to function FUNC */
 void lenv_add_builtin(lenv *e, char *id, lbuiltin func);
 
+/* Group adding builtin functions */
 void lenv_add_builtins(lenv *e);
 
 /* --------------------------------------- */
@@ -93,10 +120,11 @@ lval *lval_read(mpc_ast_t *t);
 lval *lval_add(lval *v, lval *x);
 
 // Print lval
-void lval_expr_print(lval *v, char open, char close);
-void lval_print(lval *v);
-void lval_println(lval *v);
-char* ltype_name(int t);
+void lval_expr_print(lenv *e, lval *v, char open, char close);
+void lval_print_func(lenv *e, lval* v);
+void lval_print(lenv *e, lval *v);
+void lval_println(lenv *e, lval *v);
+char *ltype_name(int t);
 
 /* Remove element I from V
 Shift remaining list towards the removed element's position */
@@ -153,6 +181,9 @@ lval *builtin_eval(lenv *e, lval *v);
 
 /* Define symbol V in environment E */
 lval *builtin_def(lenv *e, lval *v);
+
+/* Print all defined symbols */
+lval *builtin_symbols(lenv *e, lval *v);
 
 /* -------------------------------------------------- */
 /* ---------- Arithmetic Builtin Functions ---------- */
