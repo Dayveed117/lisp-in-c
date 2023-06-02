@@ -33,7 +33,7 @@ int main(int argc, char **argv)
     mpca_lang(MPCA_LANG_DEFAULT, language, Number, Symbol, Sexpr, Qexpr, Expr,
               Lispy);
 
-    puts("Lispy Version 0.4");
+    puts("Lispy Version 0.5");
     puts("Press Ctrl+c or type \"exit\" to exit\n");
 
     // Create environment for variables and functions

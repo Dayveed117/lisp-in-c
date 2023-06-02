@@ -56,25 +56,38 @@ struct lval
 {
     int type;
     long num;
-    // Error and Symbol types have some string data
     char *err;
     char *sym;
-    // Pointer to a function in the context
-    lbuiltin fun;
-    // Count keeps track of the number of lists within cell
+
+    /* Pointer to a function in the context
+    If NULL, it is user-defined function, builtin otherwise */
+    lbuiltin builtin;
+    lenv *env;
+    lval *formals;
+    lval *body;
+
+    // Number of lists within cell field
     int count;
+    // List of pointers to other lval pointers
     struct lval **cell;
 };
 
 struct lenv
 {
+    /* Pointer to parent environment
+    If NULL, then the current environment is the global one */
+    lenv *parent;
     // Double list of matching lengths
     int count;
-    // Stores keys or ids
+    // Stores keys
     char **syms;
     // Stores values
     lval **vals;
 };
+
+/* --------------------------------------- */
+/* ---------- LENV DECLARATIONS ---------- */
+/* --------------------------------------- */
 
 lenv *lenv_new(void);
 void lenv_del(lenv *e);
@@ -86,12 +99,18 @@ lval *lenv_get(lenv *e, lval *v);
 /* Reverse look up lenv_get */
 lval *lenv_get_key(lenv *e, lval *k);
 
+/* Return deep copy of environment E */
+lenv *lenv_copy(lenv *e);
+
 /* Print all registered symbols */
 void lenv_print_definitions(lenv *e);
 
-/* Associate symbol K with value from V
-if K already exists, update with V */
+/* Associate symbol K with value from V in environment E
+If K already exists, update with V */
 int lenv_put(lenv *e, lval *k, lval *v);
+
+// Call LENV_PUT on global environment E
+int lenv_def(lenv *e, lval *k, lval *v);
 
 /* Bind key ID to function FUNC */
 void lenv_add_builtin(lenv *e, char *id, lbuiltin func);
@@ -108,6 +127,7 @@ lval *lval_num(long num);
 lval *lval_err(char *fmt, ...);
 lval *lval_sym(char *symbol);
 lval *lval_fun(lbuiltin func);
+lval *lval_lambda(lval *formals, lval *body);
 lval *lval_sexpr(void);
 lval *lval_qexpr(void);
 
@@ -121,7 +141,7 @@ lval *lval_add(lval *v, lval *x);
 
 // Print lval
 void lval_expr_print(lenv *e, lval *v, char open, char close);
-void lval_print_func(lenv *e, lval* v);
+void lval_print_func(lenv *e, lval *v);
 void lval_print(lenv *e, lval *v);
 void lval_println(lenv *e, lval *v);
 char *ltype_name(int t);
@@ -146,6 +166,10 @@ lval *lval_join(lval *x, lval *y);
 
 /* Append value Y to the front of X */
 lval *lval_cons(lval *x, lval *y);
+
+/* Substitute ARGS for PARAMS in environment E
+Evaluation may be done partially */
+lval *lval_call(lenv *e, lval *params, lval *args);
 
 /* --------------------------------------------------------- */
 /* ---------- List Manipulation Builtin Functions ---------- */
@@ -182,8 +206,14 @@ lval *builtin_eval(lenv *e, lval *v);
 /* Define symbol V in environment E */
 lval *builtin_def(lenv *e, lval *v);
 
-/* Print all defined symbols */
-lval *builtin_symbols(lenv *e, lval *v);
+/* Local Assignment of V in E */
+lval *builtin_put(lenv *e, lval *v);
+
+/* Master Assignment */
+lval *builtin_var(lenv *e, lval *v, char *func);
+
+/* User-defined functions */
+lval *builtin_lambda(lenv *e, lval *v);
 
 /* -------------------------------------------------- */
 /* ---------- Arithmetic Builtin Functions ---------- */
