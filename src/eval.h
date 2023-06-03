@@ -123,6 +123,7 @@ void lenv_add_builtins(lenv *e);
 /* --------------------------------------- */
 
 // Construct pointers to new Number, Error, Symbol and Sexpr lvals
+lval *lval_empty(void);
 lval *lval_num(long num);
 lval *lval_err(char *fmt, ...);
 lval *lval_sym(char *symbol);
@@ -163,9 +164,6 @@ lval *lval_take(lval *v, int i);
 
 /* Append every element from Y to X */
 lval *lval_join(lval *x, lval *y);
-
-/* Append value Y to the front of X */
-lval *lval_cons(lval *x, lval *y);
 
 /* Substitute ARGS for PARAMS in environment E
 Evaluation may be done partially */
@@ -214,6 +212,9 @@ lval *builtin_var(lenv *e, lval *v, char *func);
 
 /* User-defined functions */
 lval *builtin_lambda(lenv *e, lval *v);
+
+/* Better way to define user functions */
+lval *builtin_fun(lenv *e, lval *v);
 
 /* -------------------------------------------------- */
 /* ---------- Arithmetic Builtin Functions ---------- */
