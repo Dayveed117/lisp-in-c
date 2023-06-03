@@ -687,7 +687,26 @@ lval *builtin_lambda(lenv *e, lval *v)
 
 lval *builtin_fun(lenv *e, lval *v)
 {
-    return NULL;
+    // Requires [two] [Q-Expressions]
+    LASSERT_NUMARGS("fun", v, 2);
+    LASSERT_TYPE("fun", v, 0, LVAL_QEXPR);
+    LASSERT_TYPE("fun", v, 1, LVAL_QEXPR);
+
+    // def {fun} (\ {args body} {def (head args) (\ (tail args) body)})
+    // fun {sum x y} {+ x y}
+    // ? fun {sum x & xs} {+ xs}
+    lval *signature = lval_pop(v, 0);
+    lval *body = lval_pop(v, 0);
+    lval *name = lval_pop(signature, 0);
+
+    // signature is now args
+    lenv_def(e, name, lval_lambda(signature, body));
+
+    lval_del(name);
+    lval_del(body);
+    lval_del(signature);
+
+    return lval_sexpr();
 }
 
 /* -------------------------------------------------- */
