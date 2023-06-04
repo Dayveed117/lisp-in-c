@@ -48,6 +48,10 @@ enum
     LVAL_QEXPR,
 };
 
+// TODO : Change ordering and equality checks with bool, if applicable
+// TODO : Represent it in the language
+typedef enum { false, true } bool;
+
 typedef struct lval lval;
 typedef struct lenv lenv;
 typedef lval *(*lbuiltin)(lenv *, lval *);
@@ -89,7 +93,10 @@ struct lenv
 /* ---------- LENV DECLARATIONS ---------- */
 /* --------------------------------------- */
 
+/* Construct a new environment */
 lenv *lenv_new(void);
+
+/* Free an environment */
 void lenv_del(lenv *e);
 
 /* Attempt to find value of V inside environment E
@@ -122,7 +129,7 @@ void lenv_add_builtins(lenv *e);
 /* ---------- LVAL DECLARATIONS ---------- */
 /* --------------------------------------- */
 
-// Construct pointers to new Number, Error, Symbol and Sexpr lvals
+// Construct pointers to types of lval
 lval *lval_empty(void);
 lval *lval_num(long num);
 lval *lval_err(char *fmt, ...);
@@ -168,6 +175,9 @@ lval *lval_join(lval *x, lval *y);
 /* Substitute ARGS for PARAMS in environment E
 Evaluation may be done partially */
 lval *lval_call(lenv *e, lval *params, lval *args);
+
+/* Equality check between entirety of X and Y */
+bool lval_eq(lval *x, lval *y);
 
 /* --------------------------------------------------------- */
 /* ---------- List Manipulation Builtin Functions ---------- */
@@ -216,9 +226,9 @@ lval *builtin_lambda(lenv *e, lval *v);
 /* Better way to define user functions */
 lval *builtin_fun(lenv *e, lval *v);
 
-/* -------------------------------------------------- */
-/* ---------- Arithmetic Builtin Functions ---------- */
-/* -------------------------------------------------- */
+/* ---------------------------------------------------------- */
+/* ---------- Arithmetic & Logic Builtin Functions ---------- */
+/* ---------------------------------------------------------- */
 
 lval *builtin_op(lenv *e, lval *v, char *op);
 lval *builtin_add(lenv *e, lval *v);
@@ -229,6 +239,17 @@ lval *builtin_mod(lenv *e, lval *v);
 lval *builtin_pow(lenv *e, lval *v);
 lval *builtin_min(lenv *e, lval *v);
 lval *builtin_max(lenv *e, lval *v);
+
+lval *builtin_ord(lenv *e, lval *v, char *op);
+lval *builtin_gt(lenv *e, lval *v);
+lval *builtin_lt(lenv *e, lval *v);
+lval *builtin_ge(lenv *e, lval *v);
+lval *builtin_le(lenv *e, lval *v);
+lval *builtin_cmp(lenv *e, lval *v, char *op);
+lval *builtin_eq(lenv *e, lval *v);
+lval *builtin_neq(lenv *e, lval *v);
+
+lval *builtin_if(lenv *e, lval *v);
 
 lval *lval_eval_sexpr(lenv *e, lval *v);
 lval *lval_eval(lenv *e, lval *v);
