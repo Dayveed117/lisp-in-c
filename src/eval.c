@@ -151,6 +151,11 @@ void lenv_add_builtins(lenv *e)
     lenv_add_builtin(e, "<=", builtin_le);
     lenv_add_builtin(e, "==", builtin_eq);
     lenv_add_builtin(e, "!=", builtin_neq);
+    lenv_add_builtin(e, "&&", builtin_and);
+    lenv_add_builtin(e, "||", builtin_or);
+    lenv_add_builtin(e, "!", builtin_not);
+    lenv_add_builtin(e, "true", builtin_true);
+    lenv_add_builtin(e, "false", builtin_false);
 }
 
 /* ------------------------------------ */
@@ -179,6 +184,14 @@ lval *lval_num(long num)
     lval *v = lval_empty();
     v->type = LVAL_NUM;
     v->num = num;
+    return v;
+}
+
+lval *lval_bool(bool bool)
+{
+    lval *v = lval_empty();
+    v->type = LVAL_BOOL;
+    v->bool = bool;
     return v;
 }
 
@@ -254,6 +267,7 @@ void lval_del(lval *v)
 {
     switch (v->type)
     {
+    case LVAL_BOOL:
     case LVAL_NUM:
         // Nothing additional to free
         break;
@@ -385,6 +399,9 @@ lval *lval_copy(lval *v)
     {
     case LVAL_NUM:
         x->num = v->num;
+        break;
+    case LVAL_BOOL:
+        x->bool = v->bool;
         break;
     case LVAL_ERR:
         x->err = malloc(sizeof(v->err) + 1);
@@ -531,6 +548,9 @@ bool lval_eq(lval *x, lval *y)
     {
     case LVAL_NUM:
         return x->num == y->num;
+        break;
+    case LVAL_BOOL:
+        return x->bool == y->bool;
         break;
     case LVAL_SYM:
         return (strcmp(x->sym, y->sym) == 0);
@@ -881,19 +901,18 @@ lval *builtin_ord(lenv *e, lval *v, char *op)
     LASSERT_TYPE(op, v, 1, LVAL_NUM);
 
     // False -> 0
-    int r;
+    lval *r = NULL;
     if (strcmp(op, ">") == 0)
-        r = v->cell[0]->num > v->cell[1]->num;
+        r = lval_bool(v->cell[0]->num > v->cell[1]->num);
     if (strcmp(op, "<") == 0)
-        r = v->cell[0]->num < v->cell[1]->num;
+        r = lval_bool(v->cell[0]->num < v->cell[1]->num);
     if (strcmp(op, ">=") == 0)
-        r = v->cell[0]->num >= v->cell[1]->num;
+        r = lval_bool(v->cell[0]->num >= v->cell[1]->num);
     if (strcmp(op, "<=") == 0)
-        r = v->cell[0]->num <= v->cell[1]->num;
-
+        r = lval_bool(v->cell[0]->num <= v->cell[1]->num);
     lval_del(v);
 
-    return lval_num(r);
+    return r;
 }
 lval *builtin_gt(lenv *e, lval *v)
 {
@@ -917,14 +936,14 @@ lval *builtin_cmp(lenv *e, lval *v, char *op)
     LASSERT_NUMARGS(op, v, 2);
 
     // False -> 0
-    int r;
+    lval *r = NULL;
     if (strcmp(op, "==") == 0)
-        r = lval_eq(v->cell[0], v->cell[1]);
+        r = lval_bool(lval_eq(v->cell[0], v->cell[1]));
     if (strcmp(op, "!=") == 0)
-        r = !lval_eq(v->cell[0], v->cell[1]);
+        r = lval_bool(!lval_eq(v->cell[0], v->cell[1]));
     lval_del(v);
 
-    return lval_num(r);
+    return r;
 }
 lval *builtin_eq(lenv *e, lval *v)
 {
@@ -934,11 +953,19 @@ lval *builtin_neq(lenv *e, lval *v)
 {
     return builtin_cmp(e, v, "!=");
 }
+lval *builtin_true(lenv *e, lval *v)
+{
+    return lval_bool(true);
+}
+lval *builtin_false(lenv *e, lval *v)
+{
+    return lval_bool(false);
+}
 lval *builtin_if(lenv *e, lval *v)
 {
-    // Requires [three] arguments - one [number] two [Q-Expression]
+    // Requires [three] arguments - one [bool] two [Q-Expression]
     LASSERT_NUMARGS("if", v, 3);
-    LASSERT_TYPE("if", v, 0, LVAL_NUM);
+    LASSERT_TYPE("if", v, 0, LVAL_BOOL);
     LASSERT_TYPE("if", v, 1, LVAL_QEXPR);
     LASSERT_TYPE("if", v, 2, LVAL_QEXPR);
 
@@ -946,11 +973,23 @@ lval *builtin_if(lenv *e, lval *v)
     v->cell[1]->type = LVAL_SEXPR;
     v->cell[2]->type = LVAL_SEXPR;
 
-    x = v->cell[0]->num ? lval_eval(e, lval_pop(v, 1))
-                        : lval_eval(e, lval_pop(v, 2));
+    x = v->cell[0]->bool ? lval_eval(e, lval_pop(v, 1))
+                         : lval_eval(e, lval_pop(v, 2));
     lval_del(v);
 
     return x;
+}
+lval *builtin_and(lenv *e, lval *v)
+{
+    return lval_err("Not implemented yet");
+}
+lval *builtin_or(lenv *e, lval *v)
+{
+    return lval_err("Not implemented yet");
+}
+lval *builtin_not(lenv *e, lval *v)
+{
+    return lval_err("Not implemented yet");
 }
 
 /* ---------------------------- */
@@ -966,6 +1005,9 @@ char *ltype_name(int t)
         break;
     case LVAL_NUM:
         return "Number";
+        break;
+    case LVAL_BOOL:
+        return "Boolean";
         break;
     case LVAL_ERR:
         return "Error";
@@ -1020,6 +1062,9 @@ void lval_print(lenv *e, lval *v)
     {
     case LVAL_NUM:
         printf("%ld", v->num);
+        break;
+    case LVAL_BOOL:
+        printf("%s", v->bool ? "true" : "false");
         break;
     case LVAL_ERR:
         printf("Error: %s", v->err);

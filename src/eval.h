@@ -41,6 +41,7 @@
 enum
 {
     LVAL_NUM,
+    LVAL_BOOL,
     LVAL_ERR,
     LVAL_SYM,
     LVAL_FUN,
@@ -59,6 +60,7 @@ typedef lval *(*lbuiltin)(lenv *, lval *);
 struct lval
 {
     int type;
+    bool bool;
     long num;
     char *err;
     char *sym;
@@ -132,6 +134,7 @@ void lenv_add_builtins(lenv *e);
 // Construct pointers to types of lval
 lval *lval_empty(void);
 lval *lval_num(long num);
+lval *lval_bool(bool bool);
 lval *lval_err(char *fmt, ...);
 lval *lval_sym(char *symbol);
 lval *lval_fun(lbuiltin func);
@@ -249,7 +252,13 @@ lval *builtin_cmp(lenv *e, lval *v, char *op);
 lval *builtin_eq(lenv *e, lval *v);
 lval *builtin_neq(lenv *e, lval *v);
 
+lval *builtin_true(lenv *e, lval *v);
+lval *builtin_false(lenv *e, lval *v);
+
 lval *builtin_if(lenv *e, lval *v);
+lval *builtin_and(lenv *e, lval *v);
+lval *builtin_or(lenv *e, lval *v);
+lval *builtin_not(lenv *e, lval *v);
 
 lval *lval_eval_sexpr(lenv *e, lval *v);
 lval *lval_eval(lenv *e, lval *v);
