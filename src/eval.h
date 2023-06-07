@@ -254,7 +254,6 @@ lval *builtin_neq(lenv *e, lval *v);
 
 lval *builtin_true(lenv *e, lval *v);
 lval *builtin_false(lenv *e, lval *v);
-
 lval *builtin_if(lenv *e, lval *v);
 lval *builtin_and(lenv *e, lval *v);
 lval *builtin_or(lenv *e, lval *v);

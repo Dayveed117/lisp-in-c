@@ -981,15 +981,35 @@ lval *builtin_if(lenv *e, lval *v)
 }
 lval *builtin_and(lenv *e, lval *v)
 {
-    return lval_err("Not implemented yet");
+    LASSERT_NUMARGS("&&", v, 2);
+    LASSERT_TYPE("&&", v, 0, LVAL_BOOL);
+    LASSERT_TYPE("&&", v, 1, LVAL_BOOL);
+
+    lval *x = lval_pop(v, 0);
+    x->bool = x->bool && lval_take(v, 0)->bool;
+
+    return x;
 }
 lval *builtin_or(lenv *e, lval *v)
 {
-    return lval_err("Not implemented yet");
+    LASSERT_NUMARGS("||", v, 2);
+    LASSERT_TYPE("||", v, 0, LVAL_BOOL);
+    LASSERT_TYPE("||", v, 1, LVAL_BOOL);
+
+    lval *x = lval_pop(v, 0);
+    x->bool = x->bool || lval_take(v, 0)->bool;
+
+    return x;
 }
 lval *builtin_not(lenv *e, lval *v)
 {
-    return lval_err("Not implemented yet");
+    LASSERT_NUMARGS("!", v, 1);
+    LASSERT_TYPE("!", v, 0, LVAL_BOOL);
+
+    lval *x = lval_pop(v, 0);
+    x->bool = !x->bool;
+
+    return x;
 }
 
 /* ---------------------------- */
