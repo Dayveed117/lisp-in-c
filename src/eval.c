@@ -119,6 +119,10 @@ void lenv_add_builtin(lenv *e, char *id, lbuiltin func)
 
 void lenv_add_builtins(lenv *e)
 {
+    lenv_add_builtin(e, "load", builtin_load);
+    lenv_add_builtin(e, "print", builtin_print);
+    lenv_add_builtin(e, "error", builtin_error);
+
     // Register Builtin List Functions
     lenv_add_builtin(e, "list", builtin_list);
     lenv_add_builtin(e, "head", builtin_head);
@@ -168,6 +172,8 @@ lval *lval_empty()
     lval *v = malloc(sizeof(lval));
     v->num = 0;
     v->err = NULL;
+    v->bool = false;
+    v->str = NULL;
     v->sym = NULL;
     v->builtin = NULL;
     v->env = NULL;
@@ -192,6 +198,15 @@ lval *lval_bool(bool bool)
     lval *v = lval_empty();
     v->type = LVAL_BOOL;
     v->bool = bool;
+    return v;
+}
+
+lval *lval_str(char *str)
+{
+    lval *v = lval_empty();
+    v->type = LVAL_STR;
+    v->str = malloc(strlen(str) + 1);
+    strcpy(v->str, str);
     return v;
 }
 
@@ -271,6 +286,10 @@ void lval_del(lval *v)
     case LVAL_NUM:
         // Nothing additional to free
         break;
+    case LVAL_STR:
+        // Free string allocation
+        free(v->str);
+        break;
     case LVAL_ERR:
         // Free error string allocation
         free(v->err);
@@ -311,14 +330,32 @@ lval *lval_read_num(mpc_ast_t *t)
     return errno != ERANGE ? lval_num(x) : lval_err("invalid number");
 }
 
+lval *lval_read_str(mpc_ast_t *t)
+{
+    // Cut off the final quote character
+    // Copy the string missing out the first quote character
+    t->contents[strlen(t->contents) - 1] = '\0';
+    char *unescaped = malloc(strlen(t->contents + 1) + 1);
+    strcpy(unescaped, t->contents + 1);
+    unescaped = mpcf_unescape(unescaped);
+
+    // Create new lval for unescaped string and free unescaped
+    lval *str = lval_str(unescaped);
+    free(unescaped);
+
+    return str;
+}
+
 lval *lval_read(mpc_ast_t *t)
 {
-    // Numbers and Symbols are directly parsed
     if (strstr(t->tag, "number"))
         return lval_read_num(t);
 
     if (strstr(t->tag, "symbol"))
         return lval_sym(t->contents);
+
+    if (strstr(t->tag, "string"))
+        return lval_read_str(t);
 
     // Node is root or sexpr
     lval *x = NULL;
@@ -336,7 +373,8 @@ lval *lval_read(mpc_ast_t *t)
             strcmp(t->children[i]->contents, ")") == 0 ||
             strcmp(t->children[i]->contents, "{") == 0 ||
             strcmp(t->children[i]->contents, "}") == 0 ||
-            strcmp(t->children[i]->tag, "regex") == 0)
+            strcmp(t->children[i]->tag, "regex") == 0 ||
+            strcmp(t->children[i]->tag, "comment") == 0)
             continue;
 
         x = lval_add(x, lval_read(t->children[i]));
@@ -403,12 +441,16 @@ lval *lval_copy(lval *v)
     case LVAL_BOOL:
         x->bool = v->bool;
         break;
+    case LVAL_STR:
+        x->str = malloc(strlen(v->str) + 1);
+        strcpy(x->str, v->str);
+        break;
     case LVAL_ERR:
-        x->err = malloc(sizeof(v->err) + 1);
+        x->err = malloc(strlen(v->err) + 1);
         strcpy(x->err, v->err);
         break;
     case LVAL_SYM:
-        x->sym = malloc(sizeof(v->sym) + 1);
+        x->sym = malloc(strlen(v->sym) + 1);
         strcpy(x->sym, v->sym);
         break;
     case LVAL_FUN:
@@ -551,6 +593,9 @@ bool lval_eq(lval *x, lval *y)
         break;
     case LVAL_BOOL:
         return x->bool == y->bool;
+        break;
+    case LVAL_STR:
+        return (strcmp(x->str, y->str) == 0);
         break;
     case LVAL_SYM:
         return (strcmp(x->sym, y->sym) == 0);
@@ -777,6 +822,30 @@ lval *builtin_fun(lenv *e, lval *v)
     lval_del(signature);
 
     return lval_sexpr();
+}
+
+lval *builtin_print(lenv *e, lval *v)
+{
+    for (size_t i = 0; i < v->count; i++)
+    {
+        lval_print(e, v->cell[i]);
+        putchar(' ');
+    }
+    putchar('\n');
+    lval_del(v);
+
+    return lval_sexpr();
+}
+
+lval *builtin_error(lenv *e, lval *v)
+{
+    LASSERT_NUMARGS("error", v, 1);
+    LASSERT_TYPE("error", v, 0, LVAL_STR);
+
+    lval *err = lval_err(v->cell[0]->str);
+    lval_del(v);
+
+    return err;
 }
 
 /* -------------------------------------------------- */
@@ -1029,6 +1098,9 @@ char *ltype_name(int t)
     case LVAL_BOOL:
         return "Boolean";
         break;
+    case LVAL_STR:
+        return "String";
+        break;
     case LVAL_ERR:
         return "Error";
         break;
@@ -1068,6 +1140,18 @@ void lval_expr_print(lenv *e, lval *v, char open, char close)
     putchar(close);
 }
 
+void lval_print_str(lenv *e, lval *v)
+{
+    // Copy and escape string
+    char *escaped = malloc(strlen(v->str) + 1);
+    strcpy(escaped, v->str);
+    escaped = mpcf_escape(escaped);
+
+    // Printf between quotes and free allocation
+    printf("\"%s\"", escaped);
+    free(escaped);
+}
+
 void lval_print_func(lenv *e, lval *v)
 {
     // Returns symbol or error
@@ -1085,6 +1169,9 @@ void lval_print(lenv *e, lval *v)
         break;
     case LVAL_BOOL:
         printf("%s", v->bool ? "true" : "false");
+        break;
+    case LVAL_STR:
+        lval_print_str(e, v);
         break;
     case LVAL_ERR:
         printf("Error: %s", v->err);

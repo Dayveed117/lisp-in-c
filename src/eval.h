@@ -42,6 +42,7 @@ enum
 {
     LVAL_NUM,
     LVAL_BOOL,
+    LVAL_STR,
     LVAL_ERR,
     LVAL_SYM,
     LVAL_FUN,
@@ -49,10 +50,11 @@ enum
     LVAL_QEXPR,
 };
 
-// TODO : Change ordering and equality checks with bool, if applicable
-// TODO : Represent it in the language
-typedef enum { false, true } bool;
-
+typedef enum
+{
+    false,
+    true
+} bool;
 typedef struct lval lval;
 typedef struct lenv lenv;
 typedef lval *(*lbuiltin)(lenv *, lval *);
@@ -62,6 +64,7 @@ struct lval
     int type;
     bool bool;
     long num;
+    char *str;
     char *err;
     char *sym;
 
@@ -135,6 +138,7 @@ void lenv_add_builtins(lenv *e);
 lval *lval_empty(void);
 lval *lval_num(long num);
 lval *lval_bool(bool bool);
+lval *lval_str(char *str);
 lval *lval_err(char *fmt, ...);
 lval *lval_sym(char *symbol);
 lval *lval_fun(lbuiltin func);
@@ -147,11 +151,13 @@ void lval_del(lval *v);
 
 // Parsing lval
 lval *lval_read_num(mpc_ast_t *t);
+lval *lval_read_str(mpc_ast_t *t);
 lval *lval_read(mpc_ast_t *t);
 lval *lval_add(lval *v, lval *x);
 
 // Print lval
 void lval_expr_print(lenv *e, lval *v, char open, char close);
+void lval_print_str(lenv *e, lval *v);
 void lval_print_func(lenv *e, lval *v);
 void lval_print(lenv *e, lval *v);
 void lval_println(lenv *e, lval *v);
@@ -228,6 +234,15 @@ lval *builtin_lambda(lenv *e, lval *v);
 
 /* Better way to define user functions */
 lval *builtin_fun(lenv *e, lval *v);
+
+/* Load contents of a file into program */
+lval *builtin_load(lenv *e, lval *v);
+
+/* Prints all arguments */
+lval *builtin_print(lenv *e, lval *v);
+
+/* Display string as an error */
+lval *builtin_error(lenv *e, lval *v);
 
 /* ---------------------------------------------------------- */
 /* ---------- Arithmetic & Logic Builtin Functions ---------- */
